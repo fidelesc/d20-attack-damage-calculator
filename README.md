@@ -1,8 +1,11 @@
-# Dungeons and Dragons Calculator - GUI Interface
+# d20 Calculator - GUI Interface
 
-This is a simple GUI interface for a Dungeons and Dragons (D&D) calculator that estimates the average attack damage per turn, based on the user's input. The calculator uses Python's `random` module and the `tkinter` library to create a graphical user interface.
+This is a simple GUI interface for a d20 system calculator that estimates the average attack damage per turn, based on the user's input. The calculator uses Python's `random` module and the `tkinter` library to create a graphical user interface.
 
-I added an executable for windows.
+## Contents
+
+- Python script
+- Windows executable.
 
 ## How to use
 
@@ -13,7 +16,7 @@ The input fields are:
 - `Attack Bonus`: The attack bonus is the bonus to the player's attack roll.
 - `Attacks per Turn`: The number of attacks the player makes per turn.
 - `Attack Description`: A description of the player's attack, which includes the number of dice, dice size, and modifier. For example, "2d6+3" means the player rolls 2 six-sided dice and adds 3 to the result.
-- `Critical Option`: The option for handling critical hits, which can be set to "normal" or "full damage".
+- `Critical Option`: The option for handling critical hits, which can be set to "normal" or "full damage". While in "normal", the critical hit doubles the number of attack dices (2d6+4 becomes 4d6+4). The "full damage" options adds the maximum dice roll (2d6+4 becomes 2d6+4+12).
 
 Once the user clicks on the "Calculate" button, the calculator estimates the average damage output per turn, and displays the result in the output field.
 
@@ -24,7 +27,7 @@ The code contains several functions, including:
 
 ### `test_attack_roll(ac, attack_bonus)`
 
-This function tests the attack roll for a given AC and attack bonus. It returns 0 for a critical miss, 1 for a hit, and 2 for a critical hit.
+This function tests the attack roll for a given AC and attack bonus. It returns 0 for a critical miss, 1 for a hit, and 2 for a critical hit (dice roll 20).
 
 ### `get_damage(attacks_per_turn, ac, attack_bonus, num_dice, dice_size, modifier, critical_option)`
 

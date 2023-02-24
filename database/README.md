@@ -1,12 +1,13 @@
 # Database of monster AC and save mods per CR
 
+## Dungeons and Dragons 5e
 Extracted from [here](https://www.reddit.com/r/dndnext/comments/jnol3b/table_of_average_acs_saving_throws_by_cr/), made by [u/guyblade](https://www.reddit.com/user/guyblade/)
 
 The median value is for the CRs with fewer monsters where a single monster with disproportionately high AC/saves skew the mean.
 
-## Notes from the original author
+### Notes from the original author for D&D spreadsheet
 
-### Sources included:
+#### Sources included:
 
 Baldur's Gate: Descent into Avernus
 
@@ -56,7 +57,7 @@ Mythic Odysseys of Theros
 
 Xanathar's Guide to Everything
 
-### Methodology:
+#### Methodology:
 
 Any duplicates are excluded (even if printed in another book).
 
@@ -65,3 +66,9 @@ Partially completed stat blocks are excluded
 "Count" means the number of monsters that went into the average (so that you can see small sample size bias at high CRs).
 
 Values are rounded to 2 decimal places for readability.
+
+## Pathfinder 2e
+
+An average of the stats for published monsters in the bestiary, Extracted from [here](https://docs.google.com/spreadsheets/d/1E2-s8weiulPoBQjdI05LBzOUToyoZIdSsLKxHAvf8F8/edit#gid=3)
+
+

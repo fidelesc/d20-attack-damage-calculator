@@ -6,49 +6,24 @@ The calculator uses Python's `random` module and the `tkinter` library to create
 
 ## Contents
 
-- Python script
+- Python script.
 - Windows executable.
+- Database of enemy AC per CR.
 
 ## How to use
 
 To use the D&D calculator, simply input the required parameters in the input fields, and click on the "Calculate" button to get the estimated damage output. 
 
 The input fields are:
+- `Attack Condition`: Normal (No advantage or disadvantage), Advantage (Roll two d20s and take the higher result), Disadvantage (Roll two d20s and take the lower result), Enemy paralyzed within 5 ft (The attack roll has advantage and any hit is a critical hit).
 - `Enemy AC`: The armor class (AC) of the enemy, which is the value that a player must roll to hit them.
 - `Enemy CR`: The enemy CR to get either the mean or median value for AC. Accepts 0,1/8,1/4,1/2,1,2,...,30.
 - `Attack Bonus`: The attack bonus is the bonus to the player's attack roll.
 - `Attacks per Turn`: The number of attacks the player makes per turn.
 - `Extra Damage`: Extra damage roll (for example "2d6+3"), and option to apply "on hit" (every hit), "on critical" (added average damage, NOT CRITICAL, on a critical hit), and "on hit once per turn" is a damage applied once per turn if a hit happens.
 - `Attack Description`: A description of the player's attack, which includes the number of dice, dice size, and modifier. For example, "2d6+3" means the player rolls 2 six-sided dice and adds 3 to the result.
-- `Critical Option`: The option for handling critical hits, which can be set to "normal" or "full damage". While in "normal", the critical hit doubles the number of attack dices (2d6+4 becomes 4d6+4). The "full damage" options adds the maximum dice roll (2d6+4 becomes 2d6+4+12).
+- `Critical Option`: The option for handling critical hits, which can be set to "Extra roll" or "Maximum damage". While in "Extra roll", the critical hit doubles the number of attack dices (2d6+4 becomes 4d6+4). The "Maximum damage" options adds the maximum dice roll (2d6+4 becomes 2d6+4+12).
 
 Once the user clicks on the "Calculate" button, the calculator estimates the average damage output per turn, and displays the result in the output field.
 
-
-## Code documentation
-
-The code contains several functions, including:
-
-### `test_attack_roll(ac, attack_bonus)`
-
-This function tests the attack roll for a given AC and attack bonus. It returns 0 for a critical miss, 1 for a hit, and 2 for a critical hit (dice roll 20).
-
-### `get_damage(attacks_per_turn, ac, attack_bonus, num_dice, dice_size, modifier, critical_option)`
-
-This function estimates the average damage rate for a given AC and attack bonus, based on the user's input. It uses the `test_attack_roll()` function to test the attack roll, and the `calculate_average_damage()` function to calculate the average damage.
-
-### `get_success_rate(ac, attack_bonus)`
-
-This function estimates the average success rate for a given AC and attack bonus. It uses the `test_attack_roll()` function to test the attack roll.
-
-### `calculate_average_damage(num_dice, dice_size, modifier, critical_option="soft")`
-
-This function calculates the average damage for a given attack description, with an option for critical damage. The `critical_option` parameter can be set to "normal", "full damage", or "soft" (default).
-
-### `get_attack_description(attack_description)`
-
-This function parses the attack description to get the number of dice and the dice size.
-
-### `calculate_estimated_damage()`
-
-This function is called when the user clicks on the "Calculate" button. It gets the input values from the input fields, estimates the damage per turn using the `get_damage()` function, and displays the result in the output field.
+It will also display the enemy AC used for calculations.

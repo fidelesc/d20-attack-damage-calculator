@@ -20,7 +20,7 @@ The input fields are:
 - `Enemy CR`: The enemy CR to get either the mean or median value for AC. Accepts 0,1/8,1/4,1/2,1,2,...,30.
 - `Attack Bonus`: The attack bonus is the bonus to the player's attack roll.
 - `Attacks per Turn`: The number of attacks the player makes per turn.
-- `Extra Damage`: Extra damage roll (for example "2d6+3"), and option to apply "on hit" (every hit), "on critical" (added average damage, NOT CRITICAL, on a critical hit), and "on hit once per turn" is a damage applied once per turn if a hit happens.
+- `Extra Damage`: (OPTIONAL) Extra damage roll (for example "2d6+3"), and option to apply "on hit" (every hit), "on critical" (added average damage, NOT CRITICAL, on a critical hit), and "on hit once per turn" is a damage applied once per turn if a hit happens.
 - `Attack Description`: A description of the player's attack, which includes the number of dice, dice size, and modifier. For example, "2d6+3" means the player rolls 2 six-sided dice and adds 3 to the result.
 - `Critical Option`: The option for handling critical hits, which can be set to "Extra roll" or "Maximum damage". While in "Extra roll", the critical hit doubles the number of attack dices (2d6+4 becomes 4d6+4). The "Maximum damage" options adds the maximum dice roll (2d6+4 becomes 2d6+4+12).
 

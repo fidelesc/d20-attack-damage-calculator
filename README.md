@@ -1,6 +1,8 @@
 # d20 Calculator - GUI Interface
 
-This is a simple GUI interface for a d20 system calculator that estimates the average attack damage per turn, based on the user's input. The calculator uses Python's `random` module and the `tkinter` library to create a graphical user interface.
+This is a simple GUI interface for a d20 system calculator that estimates the average attack damage per turn, based on the user's input. There is an option for using monster's CR, which currently only supports D&D options (see database folder).
+
+The calculator uses Python's `random` module and the `tkinter` library to create a graphical user interface.
 
 ## Contents
 
@@ -13,6 +15,7 @@ To use the D&D calculator, simply input the required parameters in the input fie
 
 The input fields are:
 - `Enemy AC`: The armor class (AC) of the enemy, which is the value that a player must roll to hit them.
+- `Enemy CR`: The enemy CR to get either the mean or median value for AC. Accepts 0,1/8,1/4,1/2,1,2,...,30.
 - `Attack Bonus`: The attack bonus is the bonus to the player's attack roll.
 - `Attacks per Turn`: The number of attacks the player makes per turn.
 - `Extra Damage`: Extra damage roll (for example "2d6+3"), and option to apply "on hit" (every hit), "on critical" (added average damage, NOT CRITICAL, on a critical hit), and "on hit once per turn" is a damage applied once per turn if a hit happens.

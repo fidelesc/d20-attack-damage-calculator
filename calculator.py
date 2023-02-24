@@ -13,27 +13,50 @@ def test_attack_roll(ac, attack_bonus):
         if d20_roll + attack_bonus >= ac:
             return 1
         else:
+            # Miss
             return 0
 
 
-def get_damage(attacks_per_turn, ac, attack_bonus, num_dice, dice_size, modifier, critical_option):
+def get_damage(attacks_per_turn, ac, attack_bonus, num_dice, dice_size, modifier, critical_option, extra_option, ex_num_dice, ex_dice_size, ex_modifier):
     """Get the average damage rate for a given AC and attack bonus."""
     damage_count = 0
     turn = []
     total_rolls = 100000  # Roll 100,000 times to get an accurate average
+    
+    hit_damage = calculate_average_damage(num_dice, dice_size, modifier)
+    hit_critical = calculate_average_damage(num_dice, dice_size, modifier, critical_option)
+    extra_damage = calculate_average_damage(ex_num_dice, ex_dice_size, ex_modifier)
+    extra_critical = calculate_average_damage(ex_num_dice, ex_dice_size, ex_modifier, critical_option)
+    
     for i in range(total_rolls):
         damage_per_turn = 0
         for j in range(attacks_per_turn):
             test = test_attack_roll(ac, attack_bonus)
-            if test==0:
-                damage_count += 0
-                damage_per_turn += 0
-            elif test==1:
-                damage_count += calculate_average_damage(num_dice, dice_size, modifier)
-                damage_per_turn += calculate_average_damage(num_dice, dice_size, modifier)
+            if test==1:
+                if extra_option == "on hit once per turn" and damage_per_turn==0:
+                    damage_count += extra_damage
+                    damage_per_turn += extra_damage
+                elif extra_option == "on hit":
+                    damage_count += extra_damage
+                    damage_per_turn += extra_damage
+                damage_count += hit_damage
+                damage_per_turn += hit_damage
+
             elif test==2:
-                damage_count += calculate_average_damage(num_dice, dice_size, modifier, critical_option)
-                damage_per_turn += calculate_average_damage(num_dice, dice_size, modifier, critical_option)
+                if extra_option == "on hit once per turn" and damage_per_turn==0:
+                    damage_count += extra_critical
+                    damage_per_turn += extra_critical
+                elif extra_option == "on hit":
+                    damage_count += extra_critical
+                    damage_per_turn += extra_critical
+                elif extra_option == "on critical":
+                    # Damage not affected by critical
+                    damage_count += extra_damage
+                    damage_per_turn += extra_damage
+                damage_count += hit_critical
+                damage_per_turn += hit_critical
+
+
     
             turn.append(damage_per_turn)
     average_damage = damage_count / total_rolls
@@ -82,11 +105,25 @@ def calculate_estimated_damage():
     attack_bonus = int(attack_bonus_entry.get())
     num_attacks = int(num_attacks_entry.get())
     attack_description = attack_description_entry.get()
+    extra_description = extra_option_entry.get()
+    extra_option = extra_option_var.get()
+    
     num_dice, dice_size, modifier = get_attack_description(attack_description)
+    ex_num_dice, ex_dice_size, ex_modifier = get_attack_description(extra_description)
     critical_option = critical_option_var.get()
 
     success_rate = get_success_rate(ac, attack_bonus)
-    average_damage, estimated_damage = get_damage(num_attacks, ac, attack_bonus, num_dice, dice_size, modifier, critical_option)
+    average_damage, estimated_damage = get_damage(num_attacks, 
+                                                  ac, 
+                                                  attack_bonus, 
+                                                  num_dice, 
+                                                  dice_size, 
+                                                  modifier, 
+                                                  critical_option, 
+                                                  extra_option,
+                                                  ex_num_dice,
+                                                  ex_dice_size,
+                                                  ex_modifier)
 
     result_label.configure(text=f"Estimated damage per turn: {estimated_damage:.2f}")
     result_label2.configure(text=f"Attack success rate: {success_rate:.2f}")
@@ -95,7 +132,7 @@ if __name__ == '__main__':
     
     # Create the main window
     root = tk.Tk()
-    root.title("D&D Damage Calculator")
+    root.title("d20 Damage Calculator")
     
     # Create the input fields
     ac_label = tk.Label(root, text="Enemy AC:")
@@ -113,26 +150,37 @@ if __name__ == '__main__':
     num_attacks_label.grid(row=2, column=0, padx=5, pady=5)
     num_attacks_entry.grid(row=2, column=1, padx=5, pady=5)
     
+    extra_damage_label = tk.Label(root, text="Extra damage:")
+    extra_damage_label.grid(row=3, column=0, padx=5, pady=5, columnspan=2)
+    
+    extra_option_entry = tk.Entry(root)
+    extra_option_entry.grid(row=5, column=0, padx=5, pady=5)
+    
+    extra_option_var = tk.StringVar(value="on hit")
+    extra_option_menu = tk.OptionMenu(root, extra_option_var, "on hit","on hit once per turn", "on critical")
+    extra_option_menu.grid(row=5, column=1, padx=5, pady=5)
+    
     attack_description_label = tk.Label(root, text="Attack Description:")
     attack_description_entry = tk.Entry(root)
-    attack_description_label.grid(row=3, column=0, padx=5, pady=5)
-    attack_description_entry.grid(row=3, column=1, padx=5, pady=5)
+    attack_description_label.grid(row=6, column=0, padx=5, pady=5)
+    attack_description_entry.grid(row=6, column=1, padx=5, pady=5)
     
     critical_option_label = tk.Label(root, text="Critical Option:")
     critical_option_var = tk.StringVar(value="normal")
     critical_option_menu = tk.OptionMenu(root, critical_option_var, "normal", "full damage")
-    critical_option_label.grid(row=4, column=0, padx=5, pady=5)
-    critical_option_menu.grid(row=4, column=1, padx=5, pady=5)
+    critical_option_label.grid(row=7, column=0, padx=5, pady=5)
+    critical_option_menu.grid(row=7, column=1, padx=5, pady=5)
     
     # Create the button to calculate the estimated damage
     calculate_button = tk.Button(root, text="Calculate", command=calculate_estimated_damage)
-    calculate_button.grid(row=5, column=0, columnspan=2, padx=5, pady=5)
+    calculate_button.grid(row=8, column=0, columnspan=2, padx=5, pady=5)
     
     # Create the label to display the result
     result_label = tk.Label(root, text="")
-    result_label.grid(row=6, column=0, columnspan=2, padx=5, pady=5)
+    result_label.grid(row=9, column=0, columnspan=2, padx=5, pady=5)
     result_label2 = tk.Label(root, text="")
-    result_label2.grid(row=8, column=0, columnspan=2, padx=5, pady=5)
+    result_label2.grid(row=11, column=0, columnspan=2, padx=5, pady=5)
+
     
     # Start the main event loop
     root.mainloop()

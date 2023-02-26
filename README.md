@@ -12,6 +12,8 @@ The calculator uses Python's `random` module and the `tkinter` library to create
 
 ## How to use
 
+## NOT UPDATED YET
+
 To use the D&D calculator, simply input the required parameters in the input fields, and click on the "Calculate" button to get the estimated damage output. 
 
 The input fields are:

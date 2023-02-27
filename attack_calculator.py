@@ -29,6 +29,8 @@ ENEMY_AC = None
 PLAYER_EFFECTS = None
 BARDIC_CONDITION = None
 
+CRIT_RANGE = 20
+
 NUMBER_OF_ROLLS = 100000
 ROLL_MULTIPLIER = 1
 
@@ -113,6 +115,14 @@ def see_tracking():
     max_array = array(max_values)
     
     turns = range(len(TURN_TRACKING))
+    
+    cumulative_damage = 0
+    cumulative_array = []
+    for i in range(len(damage_array)):
+        cumulative_damage += damage_array[i]
+        cumulative_array.append(cumulative_damage)
+        
+    cumulative_array = array(cumulative_array)
 
     # global FIG_TRACK
     global ax_FIG_TRACK
@@ -121,6 +131,7 @@ def see_tracking():
     # plt.figure("GWM/SS")
     ax.plot(turns, damage_array, color = "blue", marker="o", label="Average damage")
     ax.plot(turns, max_array, color = "red", marker="o", label="Highest damage")
+    ax.plot(turns, cumulative_array, color = "green", marker="o", label="Cumulative damage")
     ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
     ax.xaxis.set_major_formatter(ticker.FormatStrFormatter('%d'))
     ax.set_title("Average damage per turn")
@@ -144,9 +155,11 @@ def save_tracking_data():
     save_path = filedialog.asksaveasfilename(defaultextension=".csv")
     if save_path:
         output = []
-        h = "Enemy AC, Hit chance [%], Critical chance [%], Average damage, Highest damage"
+        cumulative_damage = 0
+        h = "Enemy AC, Hit chance [%], Critical chance [%], Average damage, Highest damage, Cumulative damage"
         for d in TURN_TRACKING:
-            output.append([d["AC"], d["hit"], d["critical"], d["damage"], d["max"]])
+            cumulative_damage += d["damage"]
+            output.append([d["AC"], d["hit"], d["critical"], d["damage"], d["max"], cumulative_damage])
 
         savetxt(save_path, output, fmt="%s", delimiter=",", comments="", header=h)
 
@@ -207,9 +220,9 @@ def run_calculation(enemy_ac: int):
             if attack_roll == 1: # Critical Miss!
                 peace = False # Apply once per turn
                 continue # stop here
-            elif attack_roll == 20: # Critical Hit!
+            elif attack_roll >= CRIT_RANGE: # Critical Hit!
                 peace = False # Apply once per turn
-                damage = roll_damage(weapon_damage=True, critical=True) + roll_damage(on_hit=True, critical=True) + roll_damage(on_critical=True)
+                damage = roll_damage(weapon_damage=True) + roll_damage(weapon_damage=True, critical=True) + roll_damage(on_hit=True, critical=True) + roll_damage(on_critical=True)
                 if once_per_turn:
                     damage += roll_damage(once_turn=True, critical=True)
                     once_per_turn = False
@@ -230,7 +243,7 @@ def run_calculation(enemy_ac: int):
                 if attack_roll >= enemy_ac: # Hits!
                     hits += 1
                     if CONDITION=="Enemy paralyzed":
-                        damage = roll_damage(weapon_damage=True, critical=True) + roll_damage(on_hit=True, critical=True)
+                        damage = roll_damage(weapon_damage=True) + roll_damage(weapon_damage=True, critical=True) + roll_damage(on_hit=True, critical=True)
                         if once_per_turn:
                             damage += roll_damage(once_turn=True, critical=True)
                             once_per_turn = False
@@ -421,6 +434,7 @@ def calculate_damage():
     result_label2.configure(text="")
     result_label3.configure(text="")
     result_label4.configure(text="")
+    result_label5.configure(text="")
     
     feedback_inputs = get_inputs()
     
@@ -584,6 +598,7 @@ def get_inputs(get_ac=True):
     global ENEMY_AC
     global PLAYER_EFFECTS
     global BARDIC_CONDITION
+    global CRIT_RANGE
 
 
 ## Tab 1
@@ -651,7 +666,10 @@ def get_inputs(get_ac=True):
                 debuff = int(enemy_effect_entry.get())
                 ac = ac+debuff
             except:
-                return "Incorrect Enemy AC changes entry"
+                if enemy_effect_entry.get() == '-2,-1,0,1,2,...':
+                    pass
+                else:
+                    return "Incorrect Enemy AC changes entry"
         ENEMY_AC = ac
     
 ## Tab 4
@@ -665,6 +683,13 @@ def get_inputs(get_ac=True):
               "Peace": checkbox_bond.get(),
               "Bardic": bardic_var.get()             
              }
+    
+    try:
+        CRIT_RANGE = int(crit_entry.get())
+    except:
+        return "Critical range not accepted"
+    if CRIT_RANGE <= 1 or CRIT_RANGE > 20:
+        return "Critical range not accepted"
 
     if checkbox_gwmss.get():   # if GWM and SS is true, do -5/+10
         ATTACK_BONUS += -5
@@ -912,36 +937,43 @@ if __name__ == '__main__':
     checkbox7 = tk.Checkbutton(tab4, text=" Great Weapon Master \n Sharpshooter", variable=checkbox_gwmss)
     checkbox7.grid(row=3, column=0, padx=5, pady=5, sticky="w") 
     
+    tab4_label3 = tk.Label(tab4, text="Improved critical:\n(critical hit when roll\nequals or higher than)")
+    tab4_label3.grid(row=4, column=0, padx=5, pady=5, sticky="e")
+    
+    crit_entry = WatermarkEntry(tab4, watermark='20')
+    crit_entry.grid(row=4, column=1, padx=5, pady=5, sticky="w")
+    crit_entry.configure(width=8)
+    
     tab4_label2 = tk.Label(tab4, text="Player buffs")
-    tab4_label2.grid(row=4, column=0, padx=5, pady=5, columnspan=2)
+    tab4_label2.grid(row=5, column=0, padx=5, pady=5, columnspan=2)
     
     tab4_label3 = tk.Label(tab4, text="Bardic Inspiration")
-    tab4_label3.grid(row=5, column=0, padx=5, pady=5)
+    tab4_label3.grid(row=6, column=0, padx=5, pady=5)
     
     bardic_var = tk.StringVar(value=BARDIC_INSPIRATION_DICE[0])
     bardic_dice_menu = tk.OptionMenu(tab4, bardic_var, *BARDIC_INSPIRATION_DICE)
-    bardic_dice_menu.grid(row=5, column=1, padx=5, pady=5)
+    bardic_dice_menu.grid(row=6, column=1, padx=5, pady=5)
     # Calculate the maximum length of the options
     max_length = max(len(option) for option in BARDIC_INSPIRATION_DICE)
     bardic_dice_menu.config(width=max_length)
     
     
     tab4_label4 = tk.Label(tab4, text="Use Bardic Inspiration \nwhen total attack roll less than:")
-    tab4_label4.grid(row=6, column=0, padx=5, pady=5)
+    tab4_label4.grid(row=7, column=0, padx=5, pady=5)
     
     bardic_entry = WatermarkEntry(tab4, watermark='5,6,7...')
-    bardic_entry.grid(row=6, column=1, padx=5, pady=5)
+    bardic_entry.grid(row=7, column=1, padx=5, pady=5)
     
     # Create a variable to store the state of the checkbox
     checkbox_bless = tk.BooleanVar()
     # Create the checkbox widget and associate it with the variable
     checkbox5 = tk.Checkbutton(tab4, text=" Bless", variable=checkbox_bless)
-    checkbox5.grid(row=7, column=0, padx=5, pady=5, sticky="w") 
+    checkbox5.grid(row=8, column=0, padx=5, pady=5, sticky="w") 
     
     # Create a variable to store the state of the checkbox
     checkbox_bond = tk.BooleanVar()
     checkbox6 = tk.Checkbutton(tab4, text=" Emboldening Bond", variable=checkbox_bond)
-    checkbox6.grid(row=7, column=1, padx=5, pady=5, sticky="w") 
+    checkbox6.grid(row=8, column=1, padx=5, pady=5, sticky="w") 
     
 ###############################################################################
     ## Tab 5
@@ -1036,8 +1068,6 @@ if __name__ == '__main__':
     feedback7.grid(row=4, column=0, columnspan=10, padx=5, pady=5)
     feedback7b = tk.Label(tab7, text="")
     feedback7b.grid(row=5, column=0, columnspan=10, padx=5, pady=5)
-    
-    # Create the button to save graph
     
     chart_button8 = tk.Button(tab7, text="SEE CHART", command=see_gwmss_chart)
     # calculate_button7.grid(row=6, column=0, columnspan=10, padx=5, pady=5)

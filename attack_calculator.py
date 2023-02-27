@@ -5,9 +5,14 @@ from numpy import array, savetxt
 from tkinter import filedialog
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
+import matplotlib.ticker as ticker
 
 FIG_GWMSS = Figure(figsize=(8, 4), dpi=100)
+ax_FIG_GWMSS = FIG_GWMSS.add_subplot(111)
 FIG_TRACK = Figure(figsize=(8, 4), dpi=100)
+ax_FIG_TRACK = FIG_TRACK.add_subplot(111)
+FIG_PLOT = Figure(figsize=(8, 4), dpi=100)
+ax_FIG_PLOT = FIG_PLOT.add_subplot(111)
 
 ### INPUTS
 TRACK = None
@@ -27,9 +32,13 @@ BARDIC_CONDITION = None
 NUMBER_OF_ROLLS = 100000
 ROLL_MULTIPLIER = 1
 
+MULTIPLIERS = ["1", "2", "3", "5", "10"]
+
 GWM_SS_CALCULATIONS = []
 
 TURN_TRACKING = []
+
+PLOT_CALCULATIONS = []
 
 DICES = ["d4","d6","d8","d10","d12"]
 EXTRA_DAMAGE_OPTIONS = ["On hit","On hit once per turn", "On critical"]
@@ -100,16 +109,25 @@ def see_tracking():
     damage_values = [d["damage"] for d in TURN_TRACKING]
     damage_array = array(damage_values)
     
+    max_values = [d["max"] for d in TURN_TRACKING]
+    max_array = array(max_values)
+    
     turns = range(len(TURN_TRACKING))
 
-    global FIG_TRACK
-    ax = FIG_TRACK.add_subplot(111)
+    # global FIG_TRACK
+    global ax_FIG_TRACK
+    ax_FIG_TRACK.cla()
+    ax = ax_FIG_TRACK
     # plt.figure("GWM/SS")
-    ax.plot(turns, damage_array, color = "blue", marker="o") #with gwm
+    ax.plot(turns, damage_array, color = "blue", marker="o", label="Average damage")
+    ax.plot(turns, max_array, color = "red", marker="o", label="Highest damage")
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
+    ax.xaxis.set_major_formatter(ticker.FormatStrFormatter('%d'))
     ax.set_title("Average damage per turn")
     ax.set_xlabel("Turn")
     ax.set_ylabel("Turn damage")
     ax.grid(axis='y', color='0.90')
+    ax.legend()
     
     # Create a canvas to display the plot
     canvas = FigureCanvasTkAgg(FIG_TRACK, master=plot_window2)
@@ -126,9 +144,9 @@ def save_tracking_data():
     save_path = filedialog.asksaveasfilename(defaultextension=".csv")
     if save_path:
         output = []
-        h = "Enemy AC, Hit chance [%], Critical chance [%], Average damage"
+        h = "Enemy AC, Hit chance [%], Critical chance [%], Average damage, Highest damage"
         for d in TURN_TRACKING:
-            output.append([d["AC"], d["hit"], d["critical"], d["damage"]])
+            output.append([d["AC"], d["hit"], d["critical"], d["damage"], d["max"]])
 
         savetxt(save_path, output, fmt="%s", delimiter=",", comments="", header=h)
 
@@ -168,6 +186,7 @@ def run_calculation(enemy_ac: int):
     total_damage = 0
     peace = False
     bardic_available = False
+    max_damage = 0
     global SAVAGE_AVAILABLE
     
     for _ in range(NUMBER_OF_ROLLS*ROLL_MULTIPLIER):
@@ -223,13 +242,15 @@ def run_calculation(enemy_ac: int):
                     turn_damage += damage
                     
         total_damage += turn_damage
+        if max_damage < turn_damage:
+            max_damage = turn_damage
         
         
     average_damage = total_damage / (NUMBER_OF_ROLLS*ROLL_MULTIPLIER)
     hit_chance = (hits+criticals) /(NUMBER_OF_ROLLS*ROLL_MULTIPLIER*NUM_ATTACKS)
     critical_chance = criticals / (NUMBER_OF_ROLLS*ROLL_MULTIPLIER*NUM_ATTACKS)
     
-    return average_damage, (100*hit_chance), (100*critical_chance)
+    return average_damage, (100*hit_chance), (100*critical_chance), max_damage
 
 def roll_attack():
     
@@ -314,22 +335,85 @@ def weapon_roll(damage):
 
 
 
-def plot():
-    plot_feedback.configure(text="")
+def plot_range():
     ## Tab 5
+    global PLOT_CALCULATIONS
+    
+    plot_feedback.configure(text="")
+    
+    feedback_inputs = get_inputs(get_ac=False)
+    
+    if feedback_inputs is not None:
+        plot_feedback.configure(text=feedback_inputs)
+        return 1
+
     try:
-        x0 = int(start_ac_entry.get())
-        if x0 < 0:
+        ac0 = int(start_ac_entry.get())
+        if ac0 < 0:
             plot_feedback.configure(text="Start AC input not allowed")
     except:
         plot_feedback.configure(text="Start AC input not allowed")
         
     try:
-        x1 = int(end_ac_entry.get())
-        if x1 <= x0:
+        ac1 = int(end_ac_entry.get())
+        if ac1 <= ac0:
             plot_feedback.configure(text="End AC must be higher than start AC")
     except:
         plot_feedback.configure(text="End AC input not allowed")
+        
+    PLOT_CALCULATIONS = []
+    for ac in range(ac0,ac1+1):
+        average_damage, hit_chance, critical_chance, max_damage = run_calculation(ac)
+        PLOT_CALCULATIONS.append([ac, hit_chance, average_damage])
+        
+    PLOT_CALCULATIONS = array(PLOT_CALCULATIONS)
+    
+    plot_feedback.configure(text=f"Finished calculations from AC of {ac0} to {ac1}")
+        
+    # PLOT CHART
+    plot_button5.grid(row=6, column=0, columnspan=10, padx=5, pady=5)
+    
+def see_plot():
+    # global FIG_PLOT
+    global PLOT_CALCULATIONS
+
+    # Create a new tkinter window to display the plot
+    plot_window3 = tk.Toplevel(root)
+    plot_window3.title("Turn plot")
+    ax_FIG_PLOT.cla()
+    # ax = FIG_PLOT.add_subplot(111)
+    ax = ax_FIG_PLOT
+    ax.plot(PLOT_CALCULATIONS[:,0], PLOT_CALCULATIONS[:,2], color = "blue", marker="o") #with gwm
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
+    ax.xaxis.set_major_formatter(ticker.FormatStrFormatter('%d'))
+    ax.set_title("Average turn damage per AC")
+    ax.set_xlabel("Enemy AC")
+    ax.set_ylabel("Turn damage")
+    ax.grid(axis='y', color='0.90')
+    
+    # Create a canvas to display the plot
+    canvas = FigureCanvasTkAgg(FIG_PLOT, master=plot_window3)
+    canvas.draw()
+    canvas.get_tk_widget().grid(row=0, column=0, padx=5, pady=5, columnspan=10, rowspan=10)
+    
+    save_button8 = tk.Button(plot_window3, text="SAVE CHART", command=save_plot_chart)
+    save_button8.grid(row=0, column=0, columnspan=1, padx=0, pady=0)
+    
+    save_button9 = tk.Button(plot_window3, text="SAVE DATA", command=save_plot_data)
+    save_button9.grid(row=0, column=1, columnspan=1, padx=0, pady=0)
+
+def save_plot_data():
+    save_path = filedialog.asksaveasfilename(defaultextension=".csv")
+    if save_path:
+        h = "Enemy AC, Hit chance [%], Average damage"
+
+        savetxt(save_path, PLOT_CALCULATIONS, fmt="%s", delimiter=",", comments="", header=h)
+        
+def save_plot_chart():
+    save_path = filedialog.asksaveasfilename(defaultextension=".png")
+    if save_path:
+        global FIG_PLOT
+        FIG_PLOT.savefig(save_path, dpi = 300)
         
 def calculate_damage():
     feedback.configure(text="")
@@ -344,7 +428,7 @@ def calculate_damage():
         feedback.configure(text=feedback_inputs)
         return 1
     
-    average_damage, hit_chance, critical_chance = run_calculation(ENEMY_AC)
+    average_damage, hit_chance, critical_chance, max_damage = run_calculation(ENEMY_AC)
     
     if TRACK:
         feedback.configure(text="Turn calculation saved")
@@ -353,13 +437,15 @@ def calculate_damage():
     result_label2.configure(text=f"Attack success rate: {hit_chance:.2f} %")
     result_label3.configure(text=f"Attack critical chance: {critical_chance:.2f} %")
     result_label4.configure(text=f"Estimated damage per turn: {average_damage:.2f}")
+    result_label5.configure(text=f"Highest damage per turn: {max_damage:.2f}")
     
     if TRACK:
         global TURN_TRACKING
         TURN_TRACKING.append({"damage": average_damage,
                               "hit": hit_chance,
                               "critical": critical_chance,
-                              "AC": ENEMY_AC})
+                              "AC": ENEMY_AC,
+                              "max": max_damage})
         
         turns_saved_count.configure(text=str(len(TURN_TRACKING)))
     
@@ -404,7 +490,7 @@ def check_GWM_SS():
 
     calculations_without = []
     for ac in range(ac0,ac1+1):
-        average_damage, hit_chance, critical_chance = run_calculation(ac)
+        average_damage, hit_chance, critical_chance, max_damage = run_calculation(ac)
         calculations_without.append([average_damage, hit_chance])
 
     # turn ON GWM and SS
@@ -413,7 +499,7 @@ def check_GWM_SS():
 
     calculations_with = []
     for ac in range(ac0,ac1+1):
-        average_damage, hit_chance, critical_chance = run_calculation(ac)
+        average_damage, hit_chance, critical_chance, max_damage = run_calculation(ac)
         calculations_with.append([average_damage, hit_chance, ac])
        
     stop = None
@@ -445,11 +531,13 @@ def see_gwmss_chart():
     plot_window = tk.Toplevel(root)
     plot_window.title("GWM / SS plot")
 
-    global FIG_GWMSS
-    ax = FIG_GWMSS.add_subplot(111)
-    # plt.figure("GWM/SS")
+    # global FIG_GWMSS
+    FIG_GWMSS.cla()
+    ax = FIG_GWMSS
     ax.plot(GWM_SS_CALCULATIONS[:,0], GWM_SS_CALCULATIONS[:,1], color = "blue", marker="o", label="With GWM/SS") #with gwm
     ax.plot(GWM_SS_CALCULATIONS[:,0], GWM_SS_CALCULATIONS[:,2], color = "red", marker="o", label="Without GWM/SS")
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
+    ax.xaxis.set_major_formatter(ticker.FormatStrFormatter('%d'))
     ax.set_title("Average turn damage per AC")
     ax.set_xlabel("Enemy AC")
     ax.set_ylabel("Turn damage")
@@ -594,8 +682,12 @@ def get_inputs(get_ac=True):
     TRACK = tracking_var.get()
    
 
-
-
+def save_config():
+    global ROLL_MULTIPLIER
+    
+    ROLL_MULTIPLIER = int(multiplier_var.get())
+    
+    tab8_feedback.configure(text=f"Roll multiplier changed to {ROLL_MULTIPLIER}")
 
 if __name__ == '__main__':
         
@@ -607,33 +699,37 @@ if __name__ == '__main__':
     notebook = ttk.Notebook(root)
     notebook.pack(fill='both', expand=True)
     
-    # Create the first tab
+    # Create tab 1
     tab1 = tk.Frame(notebook)
     notebook.add(tab1, text="Attack")
     
-    # Create the second tab
+    # Create tab 2
     tab2 = tk.Frame(notebook)
     notebook.add(tab2, text="Extras")
     
-    # Create the third tab
+    # Create tab 3
     tab3 = tk.Frame(notebook)
     notebook.add(tab3, text="Enemy")
     
-    # Create the fourth tab
+    # Create tab 4
     tab4 = tk.Frame(notebook)
     notebook.add(tab4, text="Player")
     
-    # Create the sixth tab
+    # Create tab 6
     tab6 = tk.Frame(notebook)
     notebook.add(tab6, text="Datapoints")
     
-    # Create the fifth tab
+    # Create tab 5
     tab5 = tk.Frame(notebook)
     notebook.add(tab5, text="Plot")
        
-    # Create the fifth tab
+    # Create tab 7
     tab7 = tk.Frame(notebook)
     notebook.add(tab7, text="GWM/SS")
+    
+    # Create tab 8
+    tab8 = tk.Frame(notebook)
+    notebook.add(tab8, text="Config")
     
 ###############################################################################
     ## TAB 1
@@ -705,6 +801,8 @@ if __name__ == '__main__':
     result_label3.grid(row=9, column=0, columnspan=5, padx=5, pady=5)
     result_label4 = tk.Label(tab1, text="")
     result_label4.grid(row=10, column=0, columnspan=5, padx=5, pady=5)
+    result_label5 = tk.Label(tab1, text="")
+    result_label5.grid(row=11, column=0, columnspan=5, padx=5, pady=5)
     
 ###############################################################################
     ### TAB 2  
@@ -866,12 +964,14 @@ if __name__ == '__main__':
     end_ac_entry.configure(width=8)
     
     # Create the button to calculate the estimated damage
-    plot_button = tk.Button(tab5, text="PLOT", command=plot)
+    plot_button = tk.Button(tab5, text="PLOT", command=plot_range)
     plot_button.grid(row=2, column=0, columnspan=4, padx=5, pady=5)
     
     # Create the label to display the result
     plot_feedback = tk.Label(tab5, text="")
     plot_feedback.grid(row=4, column=0, columnspan=5, padx=5, pady=5)
+    
+    plot_button5 = tk.Button(tab5, text="SEE PLOT", command=see_plot)
     
 ###############################################################################
     ## Tab 6
@@ -942,7 +1042,27 @@ if __name__ == '__main__':
     chart_button8 = tk.Button(tab7, text="SEE CHART", command=see_gwmss_chart)
     # calculate_button7.grid(row=6, column=0, columnspan=10, padx=5, pady=5)
     
-
+###############################################################################
+## Tab 8
+    tab8_label1 = tk.Label(tab8, text="Configurations")
+    tab8_label1.grid(row=0, column=0, padx=5, pady=5, columnspan=10)
+    
+    tab8_label2 = tk.Label(tab8, text="Roll multiplier")
+    tab8_label2.grid(row=1, column=0, padx=5, pady=5)
+    
+    multiplier_var = tk.StringVar(value=MULTIPLIERS[0])
+    multiplier_menu = tk.OptionMenu(tab8, multiplier_var, *MULTIPLIERS)
+    multiplier_menu.grid(row=1, column=1, padx=5, pady=5)
+    # Calculate the maximum length of the options
+    max_length = max(len(option) for option in MULTIPLIERS)
+    multiplier_menu.config(width=max_length)
+    
+    config_button = tk.Button(tab8, text="SAVE", command=save_config)
+    config_button.grid(row=4, column=0, columnspan=10, padx=5, pady=5)
+    
+    tab8_feedback = tk.Label(tab8, text="")
+    tab8_feedback.grid(row=5, column=0, padx=5, pady=5, columnspan=10)
+    
     
 ###############################################################################
     

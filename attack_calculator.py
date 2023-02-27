@@ -228,7 +228,7 @@ def roll_damage(weapon_damage=False, on_hit=False, once_turn=False, on_critical=
             return on_hit_roll(condition="On hit once per turn")
         
     if on_critical:
-        on_hit_roll(condition="On critical")
+        return on_hit_roll(condition="On critical")
             
 def on_hit_roll(condition: str, count_multiplier=1, maximum=False):
     damage = 0

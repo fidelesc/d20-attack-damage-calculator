@@ -1,6 +1,14 @@
 import random
 import tkinter as tk
 from tkinter import ttk
+from numpy import array, savetxt
+from tkinter import filedialog
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
+
+FIG_GWMSS = Figure(figsize=(8, 4), dpi=100)
+FIG_TRACK = Figure(figsize=(8, 4), dpi=100)
+
 ### INPUTS
 TRACK = None
 ATTACK_BONUS = None
@@ -19,6 +27,7 @@ BARDIC_CONDITION = None
 NUMBER_OF_ROLLS = 100000
 ROLL_MULTIPLIER = 1
 
+GWM_SS_CALCULATIONS = []
 
 TURN_TRACKING = []
 
@@ -79,6 +88,55 @@ def clear_tracking():
     global TURN_TRACKING
     TURN_TRACKING = []
     turns_saved_count.configure(text="0")
+    
+def see_tracking():
+    if len(TURN_TRACKING) <= 1:    
+        feedback_tracking.configure(text="Insuficient data points saved!")
+        return 1
+    # Create a new tkinter window to display the plot
+    plot_window2 = tk.Toplevel(root)
+    plot_window2.title("Turn tracking")
+    
+    damage_values = [d["damage"] for d in TURN_TRACKING]
+    damage_array = array(damage_values)
+    
+    turns = range(len(TURN_TRACKING))
+
+    global FIG_TRACK
+    ax = FIG_TRACK.add_subplot(111)
+    # plt.figure("GWM/SS")
+    ax.plot(turns, damage_array, color = "blue", marker="o") #with gwm
+    ax.set_title("Average damage per turn")
+    ax.set_xlabel("Turn")
+    ax.set_ylabel("Turn damage")
+    ax.grid(axis='y', color='0.90')
+    
+    # Create a canvas to display the plot
+    canvas = FigureCanvasTkAgg(FIG_TRACK, master=plot_window2)
+    canvas.draw()
+    canvas.get_tk_widget().grid(row=0, column=0, padx=5, pady=5, columnspan=10, rowspan=10)
+    
+    save_button2 = tk.Button(plot_window2, text="SAVE CHART", command=save_tracking_chart)
+    save_button2.grid(row=0, column=0, columnspan=1, padx=0, pady=0)
+    
+    save_button3 = tk.Button(plot_window2, text="SAVE DATA", command=save_tracking_data)
+    save_button3.grid(row=0, column=1, columnspan=1, padx=0, pady=0)
+
+def save_tracking_data():
+    save_path = filedialog.asksaveasfilename(defaultextension=".csv")
+    if save_path:
+        output = []
+        h = "Enemy AC, Hit chance [%], Critical chance [%], Average damage"
+        for d in TURN_TRACKING:
+            output.append([d["AC"], d["hit"], d["critical"], d["damage"]])
+
+        savetxt(save_path, output, fmt="%s", delimiter=",", comments="", header=h)
+
+def save_tracking_chart():
+    save_path = filedialog.asksaveasfilename(defaultextension=".png")
+    if save_path:
+        global FIG_TRACK
+        FIG_TRACK.savefig(save_path, dpi = 300)
 
 def get_enemy_ac(cr, option):
     """ Get the enemy AC by mean or median from multiple source books"""
@@ -104,7 +162,7 @@ def get_enemy_ac(cr, option):
     else:
         return None
 
-def run_calculation(ac):
+def run_calculation(enemy_ac: int):
     hits = 0
     criticals = 0
     total_damage = 0
@@ -150,7 +208,7 @@ def run_calculation(ac):
                 if bardic_available and attack_roll < BARDIC_CONDITION:
                     attack_roll += random.randint(1, int(PLAYER_EFFECTS["Bardic"][2:]))
                     
-                if attack_roll >= ENEMY_AC: # Hits!
+                if attack_roll >= enemy_ac: # Hits!
                     hits += 1
                     if CONDITION=="Enemy paralyzed":
                         damage = roll_damage(weapon_damage=True, critical=True) + roll_damage(on_hit=True, critical=True)
@@ -241,6 +299,7 @@ def on_hit_roll(condition: str, count_multiplier=1, maximum=False):
                 
     return damage
 
+
 def weapon_roll(damage):
     global SAVAGE_AVAILABLE
     for _ in range(WEAPON_DAMAGE_COUNT):
@@ -295,8 +354,135 @@ def calculate_damage():
     result_label3.configure(text=f"Attack critical chance: {critical_chance:.2f} %")
     result_label4.configure(text=f"Estimated damage per turn: {average_damage:.2f}")
     
+    if TRACK:
+        global TURN_TRACKING
+        TURN_TRACKING.append({"damage": average_damage,
+                              "hit": hit_chance,
+                              "critical": critical_chance,
+                              "AC": ENEMY_AC})
         
-def get_inputs():
+        turns_saved_count.configure(text=str(len(TURN_TRACKING)))
+    
+def check_GWM_SS():
+    
+    global ATTACK_BONUS
+    global DAMAGE_BONUS
+    global GWM_SS_CALCULATIONS
+
+    feedback7.configure(text="")
+    feedback7b.configure(text="")
+    
+    feedback_inputs = get_inputs(get_ac=False)
+    
+    if feedback_inputs is not None:
+        feedback7.configure(text=feedback_inputs)
+        return 1
+        
+    try:
+        ac0 = int(start_ac_entry7.get())
+    except:
+        feedback7.configure(text="Incorrect Start AC input")
+        return 1
+    if ac0 <= 0:
+        feedback7.configure(text="Incorrect Start AC input")
+        return 1
+    try:
+        ac1 = int(end_ac_entry7.get())
+    except:
+        feedback7.configure(text="Incorrect End AC input")
+        return 1
+    if ac1 <= 0:
+        feedback7.configure(text="Incorrect End AC input")
+        return 1
+    if ac0 >= ac1:
+        feedback7.configure(text="Start AC cannot be higher than End AC!")
+        return 1
+    
+    if checkbox_gwmss.get():   # if GWM and SS is already true, remove it here
+        ATTACK_BONUS += +5
+        DAMAGE_BONUS += -10
+
+    calculations_without = []
+    for ac in range(ac0,ac1+1):
+        average_damage, hit_chance, critical_chance = run_calculation(ac)
+        calculations_without.append([average_damage, hit_chance])
+
+    # turn ON GWM and SS
+    ATTACK_BONUS += -5
+    DAMAGE_BONUS += 10
+
+    calculations_with = []
+    for ac in range(ac0,ac1+1):
+        average_damage, hit_chance, critical_chance = run_calculation(ac)
+        calculations_with.append([average_damage, hit_chance, ac])
+       
+    stop = None
+    for i in range(len(calculations_with)):
+        if calculations_with[i][0] > calculations_without[i][0]:
+            stop = calculations_with[i][2]
+        else:
+            break
+
+    GWM_SS_CALCULATIONS = []
+    for i in range(len(calculations_with)):
+        GWM_SS_CALCULATIONS.append([calculations_with[i][2],calculations_with[i][0], calculations_without[i][0]])
+    
+    GWM_SS_CALCULATIONS = array(GWM_SS_CALCULATIONS, dtype=object)
+        
+    feedback7.configure(text=f"Finished calculations from AC of {ac0} to {ac1}")
+    if stop == None:
+        feedback7b.configure(text="Great Weapon Master / Sharpshooter should not be used in this AC range")
+    else:
+        feedback7b.configure(text=f"Great Weapon Master / Sharpshooter is optimum for enemy AC < {stop}")
+        
+    # PLOT CHART
+    chart_button8.grid(row=6, column=0, columnspan=10, padx=5, pady=5)
+
+
+
+def see_gwmss_chart():
+    # Create a new tkinter window to display the plot
+    plot_window = tk.Toplevel(root)
+    plot_window.title("GWM / SS plot")
+
+    global FIG_GWMSS
+    ax = FIG_GWMSS.add_subplot(111)
+    # plt.figure("GWM/SS")
+    ax.plot(GWM_SS_CALCULATIONS[:,0], GWM_SS_CALCULATIONS[:,1], color = "blue", marker="o", label="With GWM/SS") #with gwm
+    ax.plot(GWM_SS_CALCULATIONS[:,0], GWM_SS_CALCULATIONS[:,2], color = "red", marker="o", label="Without GWM/SS")
+    ax.set_title("Average turn damage per AC")
+    ax.set_xlabel("Enemy AC")
+    ax.set_ylabel("Turn damage")
+    ax.grid(axis='y', color='0.90')
+    ax.legend()
+    
+    # Create a canvas to display the plot
+    canvas = FigureCanvasTkAgg(FIG_GWMSS, master=plot_window)
+    canvas.draw()
+    canvas.get_tk_widget().grid(row=0, column=0, padx=5, pady=5, columnspan=10, rowspan=10)
+    
+    save_button = tk.Button(plot_window, text="SAVE CHART", command=save_gwmss_chart)
+    save_button.grid(row=0, column=0, columnspan=1, padx=0, pady=0)
+    
+    save_button4 = tk.Button(plot_window, text="SAVE DATA", command=save_gwmss_data)
+    save_button4.grid(row=0, column=1, columnspan=1, padx=0, pady=0)
+
+def save_gwmss_data():
+    save_path = filedialog.asksaveasfilename(defaultextension=".csv")
+    if save_path:
+        h = "Enemy AC, Damage with GWM/SS, Damage without GWM/SS"
+
+        savetxt(save_path, GWM_SS_CALCULATIONS, fmt="%s", delimiter=",", comments="", header=h)
+        
+def save_gwmss_chart():
+    save_path = filedialog.asksaveasfilename(defaultextension=".png")
+    if save_path:
+        global FIG_GWMSS
+        FIG_GWMSS.savefig(save_path, dpi = 300)
+    
+
+
+def get_inputs(get_ac=True):
     global TRACK
     global ATTACK_BONUS
     global WEAPON_DAMAGE_COUNT
@@ -359,25 +545,26 @@ def get_inputs():
             return f"Incorrect Extra damage entry: {i+1}"
 
 ## Tab 3
-    ac_option = ac_option_var.get()
-    if ac_option == AC_OPTIONS[0]: # Use input AC
-        try:
-            ac = int(ac_entry.get())
-            if ac < 0:
+    if get_ac:
+        ac_option = ac_option_var.get()
+        if ac_option == AC_OPTIONS[0]: # Use input AC
+            try:
+                ac = int(ac_entry.get())
+                if ac < 0:
+                    return "Incorrect Enemy AC entry"
+            except:
                 return "Incorrect Enemy AC entry"
-        except:
-            return "Incorrect Enemy AC entry"
-    else:
-        cr = enemy_cr_input.get()
-        ENEMY_CR = cr
-        ac = get_enemy_ac(cr, ac_option)
-        
-        try:
-            debuff = int(enemy_effect_entry.get())
-            ac = ac+debuff
-        except:
-            return "Incorrect Enemy AC changes entry"
-    ENEMY_AC = ac
+        else:
+            cr = enemy_cr_input.get()
+            ENEMY_CR = cr
+            ac = get_enemy_ac(cr, ac_option)
+            
+            try:
+                debuff = int(enemy_effect_entry.get())
+                ac = ac+debuff
+            except:
+                return "Incorrect Enemy AC changes entry"
+        ENEMY_AC = ac
     
 ## Tab 4
 
@@ -391,7 +578,10 @@ def get_inputs():
               "Bardic": bardic_var.get()             
              }
 
-    
+    if checkbox_gwmss.get():   # if GWM and SS is true, do -5/+10
+        ATTACK_BONUS += -5
+        DAMAGE_BONUS += 10
+        
     if bardic_var.get() != "No":
         try:
             BARDIC_CONDITION = int(bardic_entry.get())
@@ -402,7 +592,7 @@ def get_inputs():
 ## Tab 6
 
     TRACK = tracking_var.get()
-
+   
 
 
 
@@ -441,8 +631,11 @@ if __name__ == '__main__':
     tab5 = tk.Frame(notebook)
     notebook.add(tab5, text="Plot")
        
-
+    # Create the fifth tab
+    tab7 = tk.Frame(notebook)
+    notebook.add(tab7, text="GWM/SS")
     
+###############################################################################
     ## TAB 1
     
     # Create the input fields  
@@ -513,7 +706,7 @@ if __name__ == '__main__':
     result_label4 = tk.Label(tab1, text="")
     result_label4.grid(row=10, column=0, columnspan=5, padx=5, pady=5)
     
-    
+###############################################################################
     ### TAB 2  
     extra_damage_label = tk.Label(tab2, text="Extra damage:")
     extra_damage_label.grid(row=0, column=0, padx=5, pady=5, columnspan=4)
@@ -550,7 +743,8 @@ if __name__ == '__main__':
         # Calculate the maximum length of the options
         max_length = max(len(option) for option in EXTRA_DAMAGE_OPTIONS)
         menu.config(width=max_length)
-        
+       
+###############################################################################
     ## Tab 3
         
     tab3_label = tk.Label(tab3, text="Enemy information")
@@ -588,6 +782,7 @@ if __name__ == '__main__':
     enemy_help = tk.Label(tab3, text=ENEMY_TOOLTIP)
     enemy_help.grid(row=0, column=3, padx=5, pady=5, rowspan=5, columnspan=3)
     
+###############################################################################
     ## Tab 4
 
     tab4_label1 = tk.Label(tab4, text="Player feats")
@@ -596,55 +791,61 @@ if __name__ == '__main__':
     # Create a variable to store the state of the checkbox
     checkbox_elven = tk.BooleanVar()
     # Create the checkbox widget and associate it with the variable
-    checkbox1 = tk.Checkbutton(tab4, text="Elven Accuracy", variable=checkbox_elven)
-    checkbox1.grid(row=1, column=0, padx=5, pady=5) 
+    checkbox1 = tk.Checkbutton(tab4, text=" Elven Accuracy", variable=checkbox_elven)
+    checkbox1.grid(row=1, column=0, padx=5, pady=5, sticky="w") 
     
     # Create a variable to store the state of the checkbox
     checkbox_lucky = tk.BooleanVar()
-    checkbox2 = tk.Checkbutton(tab4, text="Halfling Luck", variable=checkbox_lucky)
-    checkbox2.grid(row=1, column=1, padx=5, pady=5) 
+    checkbox2 = tk.Checkbutton(tab4, text=" Halfling Luck", variable=checkbox_lucky)
+    checkbox2.grid(row=1, column=1, padx=5, pady=5, sticky="w") 
     
     # Create a variable to store the state of the checkbox
     checkbox_gwf = tk.BooleanVar()
-    checkbox3 = tk.Checkbutton(tab4, text="Great Weapon Fighting", variable=checkbox_gwf)
-    checkbox3.grid(row=2, column=0, padx=5, pady=5) 
+    checkbox3 = tk.Checkbutton(tab4, text=" Great Weapon Fighting", variable=checkbox_gwf)
+    checkbox3.grid(row=2, column=0, padx=5, pady=5, sticky="w") 
     
     # Create a variable to store the state of the checkbox
     checkbox_savage = tk.BooleanVar()
-    checkbox4 = tk.Checkbutton(tab4, text="Savage Attacker", variable=checkbox_savage)
-    checkbox4.grid(row=2, column=1, padx=5, pady=5) 
+    checkbox4 = tk.Checkbutton(tab4, text=" Savage Attacker", variable=checkbox_savage)
+    checkbox4.grid(row=2, column=1, padx=5, pady=5, sticky="w") 
+    
+    # Create a variable to store the state of the checkbox
+    checkbox_gwmss = tk.BooleanVar()
+    checkbox7 = tk.Checkbutton(tab4, text=" Great Weapon Master \n Sharpshooter", variable=checkbox_gwmss)
+    checkbox7.grid(row=3, column=0, padx=5, pady=5, sticky="w") 
     
     tab4_label2 = tk.Label(tab4, text="Player buffs")
-    tab4_label2.grid(row=3, column=0, padx=5, pady=5, columnspan=2)
+    tab4_label2.grid(row=4, column=0, padx=5, pady=5, columnspan=2)
     
     tab4_label3 = tk.Label(tab4, text="Bardic Inspiration")
-    tab4_label3.grid(row=4, column=0, padx=5, pady=5)
+    tab4_label3.grid(row=5, column=0, padx=5, pady=5)
     
     bardic_var = tk.StringVar(value=BARDIC_INSPIRATION_DICE[0])
     bardic_dice_menu = tk.OptionMenu(tab4, bardic_var, *BARDIC_INSPIRATION_DICE)
-    bardic_dice_menu.grid(row=4, column=1, padx=5, pady=5)
+    bardic_dice_menu.grid(row=5, column=1, padx=5, pady=5)
     # Calculate the maximum length of the options
     max_length = max(len(option) for option in BARDIC_INSPIRATION_DICE)
     bardic_dice_menu.config(width=max_length)
     
     
     tab4_label4 = tk.Label(tab4, text="Use Bardic Inspiration \nwhen total attack roll less than:")
-    tab4_label4.grid(row=5, column=0, padx=5, pady=5)
+    tab4_label4.grid(row=6, column=0, padx=5, pady=5)
     
     bardic_entry = WatermarkEntry(tab4, watermark='5,6,7...')
-    bardic_entry.grid(row=5, column=1, padx=5, pady=5)
+    bardic_entry.grid(row=6, column=1, padx=5, pady=5)
     
     # Create a variable to store the state of the checkbox
     checkbox_bless = tk.BooleanVar()
     # Create the checkbox widget and associate it with the variable
-    checkbox5 = tk.Checkbutton(tab4, text="Bless", variable=checkbox_bless)
-    checkbox5.grid(row=6, column=0, padx=5, pady=5) 
+    checkbox5 = tk.Checkbutton(tab4, text=" Bless", variable=checkbox_bless)
+    checkbox5.grid(row=7, column=0, padx=5, pady=5, sticky="w") 
     
     # Create a variable to store the state of the checkbox
     checkbox_bond = tk.BooleanVar()
-    checkbox6 = tk.Checkbutton(tab4, text="Emboldening Bond", variable=checkbox_bond)
-    checkbox6.grid(row=6, column=1, padx=5, pady=5) 
+    checkbox6 = tk.Checkbutton(tab4, text=" Emboldening Bond", variable=checkbox_bond)
+    checkbox6.grid(row=7, column=1, padx=5, pady=5, sticky="w") 
     
+###############################################################################
     ## Tab 5
     
     tab5_label1 = tk.Label(tab5, text="Plot calculations for a range of AC values")
@@ -672,6 +873,7 @@ if __name__ == '__main__':
     plot_feedback = tk.Label(tab5, text="")
     plot_feedback.grid(row=4, column=0, columnspan=5, padx=5, pady=5)
     
+###############################################################################
     ## Tab 6
     
     tab6_label1 = tk.Label(tab6, text="Save turn calculations for plotting")
@@ -696,6 +898,53 @@ if __name__ == '__main__':
     # Create the switch button widget and associate it with the variable
     clear_tracking_button = tk.Button(tab6, text="CLEAR TRACKED TURNS", command=clear_tracking)
     clear_tracking_button.grid(row=2, column=0, padx=5, pady=5, columnspan=4)
+    
+    # Create the switch button widget and associate it with the variable
+    see_tracking_button = tk.Button(tab6, text="SEE TRACKED TURNS", command=see_tracking)
+    see_tracking_button.grid(row=3, column=0, padx=5, pady=5, columnspan=4)
+    
+    feedback_tracking = tk.Label(tab6, text="")
+    feedback_tracking.grid(row=4, column=0, padx=5, pady=5, columnspan=4)
+    
+###############################################################################
+    ## Tab 7
+    
+    tab7_label1 = tk.Label(tab7, text="Check effectiveness of Great Weapon Master or Sharpshooter")
+    tab7_label1.grid(row=0, column=0, padx=5, pady=5, columnspan=10)
+    
+    tab7_label2 = tk.Label(tab7, text="Start AC:")
+    tab7_label2.grid(row=1, column=0, padx=5, pady=5)
+    
+    start_ac_entry7 = WatermarkEntry(tab7, watermark='5')
+    start_ac_entry7.grid(row=1, column=1, padx=5, pady=5)
+    start_ac_entry7.configure(width=8)
+    
+    tab7_label3 = tk.Label(tab7, text="End AC:")
+    tab7_label3.grid(row=1, column=3, padx=5, pady=5)
+    
+    end_ac_entry7 = WatermarkEntry(tab7, watermark='30')
+    end_ac_entry7.grid(row=1, column=4, padx=5, pady=5)
+    end_ac_entry7.configure(width=8)
+    
+    tab7_label2 = tk.Label(tab7, text="Note: this will turn ON the Great Weapon Master / Sharpshooter feat option \n for these calculations")
+    tab7_label2.grid(row=2, column=0, padx=5, pady=5, columnspan=10)
+    
+    # Create the button to calculate the estimated damage
+    calculate_button7 = tk.Button(tab7, text="CALCULATE", command=check_GWM_SS)
+    calculate_button7.grid(row=3, column=0, columnspan=10, padx=5, pady=5)
+    feedback7 = tk.Label(tab7, text="")
+    feedback7.grid(row=4, column=0, columnspan=10, padx=5, pady=5)
+    feedback7b = tk.Label(tab7, text="")
+    feedback7b.grid(row=5, column=0, columnspan=10, padx=5, pady=5)
+    
+    # Create the button to save graph
+    
+    chart_button8 = tk.Button(tab7, text="SEE CHART", command=see_gwmss_chart)
+    # calculate_button7.grid(row=6, column=0, columnspan=10, padx=5, pady=5)
+    
+
+    
+###############################################################################
     
     # Start the main event loop
     root.mainloop()

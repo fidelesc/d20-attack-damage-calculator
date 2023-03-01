@@ -546,8 +546,8 @@ def see_gwmss_chart():
     plot_window.title("GWM / SS plot")
 
     # global FIG_GWMSS
-    FIG_GWMSS.cla()
-    ax = FIG_GWMSS
+    ax_FIG_GWMSS.cla()
+    ax = ax_FIG_GWMSS
     ax.plot(GWM_SS_CALCULATIONS[:,0], GWM_SS_CALCULATIONS[:,1], color = "blue", marker="o", label="With GWM/SS") #with gwm
     ax.plot(GWM_SS_CALCULATIONS[:,0], GWM_SS_CALCULATIONS[:,2], color = "red", marker="o", label="Without GWM/SS")
     ax.xaxis.set_major_locator(ticker.MultipleLocator(1))

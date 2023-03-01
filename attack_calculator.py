@@ -222,9 +222,9 @@ def run_calculation(enemy_ac: int):
                 continue # stop here
             elif attack_roll >= CRIT_RANGE: # Critical Hit!
                 peace = False # Apply once per turn
-                damage = roll_damage(weapon_damage=True) + roll_damage(weapon_damage=True, critical=True) + roll_damage(on_hit=True, critical=True) + roll_damage(on_critical=True)
+                damage = roll_damage(weapon_damage=True) + roll_damage(weapon_damage=True, critical=True) + roll_damage(on_hit=True) + roll_damage(on_hit=True, critical=True) + roll_damage(on_critical=True)
                 if once_per_turn:
-                    damage += roll_damage(once_turn=True, critical=True)
+                    damage += roll_damage(once_turn=True) + roll_damage(once_turn=True, critical=True)
                     once_per_turn = False
                 criticals += 1 # count critical
                 turn_damage += damage
@@ -243,9 +243,9 @@ def run_calculation(enemy_ac: int):
                 if attack_roll >= enemy_ac: # Hits!
                     hits += 1
                     if CONDITION=="Enemy paralyzed":
-                        damage = roll_damage(weapon_damage=True) + roll_damage(weapon_damage=True, critical=True) + roll_damage(on_hit=True, critical=True)
+                        damage = roll_damage(weapon_damage=True) + roll_damage(weapon_damage=True, critical=True) + roll_damage(on_hit=True) + roll_damage(on_hit=True, critical=True) + roll_damage(on_critical=True)
                         if once_per_turn:
-                            damage += roll_damage(once_turn=True, critical=True)
+                            damage += roll_damage(once_turn=True) + roll_damage(once_turn=True, critical=True)
                             once_per_turn = False
                     else:
                         damage = roll_damage(weapon_damage=True) + roll_damage(on_hit=True)
